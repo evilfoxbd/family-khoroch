@@ -1,0 +1,47 @@
+name: Collect Telegram messages
+
+on:
+  schedule:
+    # Telegram only keeps undelivered updates for ~24h, so poll often.
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Both workflows commit to main; queue them instead of racing.
+concurrency:
+  group: khoroch-commit
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Fetch new messages
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALLOWED_CHAT_IDS: ${{ secrets.TELEGRAM_ALLOWED_CHAT_IDS }}
+        run: python scripts/collect.py
+
+      - name: Commit
+        run: |
+          git config user.name "khoroch-bot"
+          git config user.email "khoroch-bot@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "Nothing new to commit."
+            exit 0
+          fi
+          git commit -m "data: collect messages $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git pull --rebase --autostash
+          git push

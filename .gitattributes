@@ -1,0 +1,4 @@
+# Keep LF in the repo so the shell steps in GitHub Actions don't break on CRLF.
+* text=auto eol=lf
+*.png binary
+*.jpg binary

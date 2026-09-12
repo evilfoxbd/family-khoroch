@@ -1,0 +1,67 @@
+name: Daily report
+
+on:
+  schedule:
+    # 18:05 UTC = 00:05 Bangladesh time, just after the day ends.
+    - cron: "5 18 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Day to rebuild (YYYY-MM-DD). Leave empty for the day that just ended."
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: khoroch-commit
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Collect the last messages of the day
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALLOWED_CHAT_IDS: ${{ secrets.TELEGRAM_ALLOWED_CHAT_IDS }}
+        run: python scripts/collect.py
+
+      - name: Build the report
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -n "${{ inputs.date }}" ]; then
+            python scripts/report.py --date "${{ inputs.date }}"
+          else
+            python scripts/report.py
+          fi
+
+      - name: Sync the dashboard's data file
+        run: |
+          if [ -f reports/expenses.csv ]; then
+            mkdir -p docs/data
+            cp reports/expenses.csv docs/data/expenses.csv
+          fi
+
+      - name: Commit
+        run: |
+          git config user.name "khoroch-bot"
+          git config user.email "khoroch-bot@users.noreply.github.com"
+          git add data reports docs
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+            exit 0
+          fi
+          git commit -m "report: daily summary $(date -u '+%Y-%m-%d')"
+          git pull --rebase --autostash
+          git push

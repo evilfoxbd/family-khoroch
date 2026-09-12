@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>পারিবারিক বাজার খরচ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.6.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6;
+    --status-good:    #0ca30c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page-plane:     #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --status-good:    #0ca30c;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    margin: 0;
+    padding: 24px 16px 64px;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+
+  header { margin-bottom: 24px; }
+  header h1 { font-size: 22px; margin: 0 0 4px; }
+  header p { color: var(--text-secondary); margin: 0; font-size: 14px; }
+  header a { color: var(--series-1); }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 16px;
+    color: var(--text-secondary);
+  }
+
+  .trigger-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .trigger-title { font-weight: 600; font-size: 14px; }
+  .trigger-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  #trigger-btn {
+    background: var(--series-1);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  #trigger-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 700px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  }
+  .stat-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .stat-tile .label { font-size: 12px; color: var(--text-secondary); }
+  .stat-tile .value { font-size: 22px; font-weight: 600; margin-top: 4px; }
+
+  .chart-box { position: relative; height: 260px; }
+  .chart-box.tall { height: 340px; }
+
+  select {
+    background: var(--surface-1);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .card-head h2 { margin: 0; }
+
+  .todo-list { list-style: none; margin: 0; padding: 0; }
+  .todo-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--gridline);
+    font-size: 14px;
+  }
+  .todo-list li:last-child { border-bottom: none; }
+  .todo-list .muted { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+  .empty { color: var(--text-muted); font-size: 14px; padding: 8px 0; }
+
+  .table-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  input[type="search"] {
+    background: var(--surface-1);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-family: inherit;
+    flex: 1;
+    min-width: 140px;
+  }
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--gridline);
+    white-space: nowrap;
+  }
+  th {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 12px;
+  }
+  td.amount, th.amount { text-align: right; font-variant-numeric: tabular-nums; }
+  td.note { white-space: normal; color: var(--text-secondary); }
+  .status-buy { color: var(--text-muted); font-size: 12px; }
+
+  footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-top: 32px;
+  }
+  footer a { color: var(--text-secondary); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>পারিবারিক বাজার খরচ</h1>
+    <p>টেলিগ্রাম থেকে প্রতিদিন অটো গোছানো হিসাব &middot;
+       <a href="https://github.com/evilfoxbd/family-khoroch" target="_blank" rel="noopener">GitHub রিপো</a></p>
+  </header>
+
+  <div class="card">
+    <div class="trigger-row">
+      <div>
+        <div class="trigger-title">আজকের ডেটা এখনই প্রসেস করুন</div>
+        <div class="trigger-sub" id="trigger-status">সাধারণত রাত ১২টায় নিজে থেকে হয় — চাইলে এখনই চালাতে পারেন</div>
+      </div>
+      <button id="trigger-btn">▶ এখনই চালান</button>
+    </div>
+  </div>
+
+  <div class="kpi-row" id="kpi-row"></div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>মাস অনুযায়ী মোট খরচ</h2>
+    </div>
+    <div class="chart-box"><canvas id="monthly-chart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>ক্যাটাগরি অনুযায়ী খরচ</h2>
+      <select id="month-select"></select>
+    </div>
+    <div class="chart-box tall"><canvas id="category-chart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h2>সাম্প্রতিক "কিনতে হবে"</h2>
+    <p class="empty" id="todo-hint" style="display:none">গত ১৪ দিনে কোনো পেন্ডিং আইটেম নেই।</p>
+    <ul class="todo-list" id="todo-list"></ul>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>সব আইটেম</h2>
+    </div>
+    <div class="table-controls">
+      <input type="search" id="search-box" placeholder="খুঁজুন (জিনিস, ক্যাটাগরি, নোট...)">
+      <select id="category-filter"><option value="">সব ক্যাটাগরি</option></select>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>তারিখ</th><th>ক্যাটাগরি</th><th>জিনিস</th><th>পরিমাণ</th>
+            <th class="amount">টাকা</th><th>অবস্থা</th><th>নোট</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    প্রতিদিন রাত ১২টায় GitHub Actions দিয়ে অটো আপডেট হয় &middot;
+    ডেটার উৎস: <a href="data/expenses.csv" target="_blank" rel="noopener">expenses.csv</a>
+  </footer>
+</div>
+
+<script>
+const BOUGHT = "কেনা হয়েছে";
+const TO_BUY = "কিনতে হবে";
+const money = n => new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n);
+
+async function main() {
+  const res = await fetch("data/expenses.csv", { cache: "no-store" });
+  if (!res.ok) {
+    document.getElementById("kpi-row").innerHTML =
+      '<div class="card" style="grid-column:1/-1">এখনো কোনো ডেটা নেই — প্রথম দৈনিক রিপোর্ট তৈরি হলে এখানে দেখা যাবে।</div>';
+    return;
+  }
+  const text = (await res.text()).replace(/^﻿/, ""); // strip BOM if present
+  const parsed = Papa.parse(text, { header: true, skipEmptyLines: true, dynamicTyping: false });
+  const rows = parsed.data
+    .map(r => ({ ...r, amount: parseFloat(r.amount) || 0 }))
+    .filter(r => r.date);
+
+  if (rows.length === 0) {
+    document.getElementById("kpi-row").innerHTML =
+      '<div class="card" style="grid-column:1/-1">এখনো কোনো ডেটা নেই — প্রথম দৈনিক রিপোর্ট তৈরি হলে এখানে দেখা যাবে।</div>';
+    return;
+  }
+
+  const bought = rows.filter(r => r.status === BOUGHT);
+  const maxDate = rows.reduce((m, r) => (r.date > m ? r.date : m), rows[0].date);
+  const currentMonth = maxDate.slice(0, 7);
+
+  // ---- monthly totals ----
+  const byMonth = {};
+  for (const r of bought) {
+    const m = r.date.slice(0, 7);
+    byMonth[m] = (byMonth[m] || 0) + r.amount;
+  }
+  const months = Object.keys(byMonth).sort();
+
+  // ---- KPI row ----
+  const thirtyDaysAgo = new Date(maxDate);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const last30Cutoff = thirtyDaysAgo.toISOString().slice(0, 10);
+  const totalAllTime = bought.reduce((s, r) => s + r.amount, 0);
+  const thisMonthTotal = byMonth[currentMonth] || 0;
+  const last30Total = bought.filter(r => r.date >= last30Cutoff).reduce((s, r) => s + r.amount, 0);
+  const daysTracked = new Set(rows.map(r => r.date)).size;
+
+  const kpis = [
+    ["সর্বমোট খরচ", totalAllTime],
+    ["এই মাসে", thisMonthTotal],
+    ["গত ৩০ দিনে", last30Total],
+  ];
+  document.getElementById("kpi-row").innerHTML =
+    kpis.map(([label, val]) =>
+      `<div class="stat-tile"><div class="label">${label}</div><div class="value">${money(val)} টাকা</div></div>`
+    ).join("") +
+    `<div class="stat-tile"><div class="label">মোট দিন ট্র্যাক করা হয়েছে</div><div class="value">${daysTracked}</div></div>`;
+
+  // ---- monthly trend chart (single series -> one hue, no legend needed) ----
+  const style = getComputedStyle(document.documentElement);
+  const seriesColor = style.getPropertyValue("--series-1").trim();
+  const gridColor = style.getPropertyValue("--gridline").trim();
+  const mutedColor = style.getPropertyValue("--text-muted").trim();
+  const surfaceColor = style.getPropertyValue("--surface-1").trim();
+
+  new Chart(document.getElementById("monthly-chart"), {
+    type: "bar",
+    data: {
+      labels: months,
+      datasets: [{
+        data: months.map(m => byMonth[m]),
+        backgroundColor: seriesColor,
+        borderRadius: 4,
+        maxBarThickness: 40,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => money(ctx.parsed.y) + " টাকা" } },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: mutedColor } },
+        y: {
+          beginAtZero: true,
+          grid: { color: gridColor },
+          ticks: { color: mutedColor, callback: v => money(v) },
+        },
+      },
+    },
+  });
+
+  // ---- category breakdown (month selector) ----
+  const monthSelect = document.getElementById("month-select");
+  monthSelect.innerHTML = months.slice().reverse()
+    .map(m => `<option value="${m}"${m === currentMonth ? " selected" : ""}>${m}</option>`).join("");
+
+  let categoryChart = null;
+  function renderCategoryChart(month) {
+    const inMonth = bought.filter(r => r.date.slice(0, 7) === month);
+    const byCat = {};
+    for (const r of inMonth) byCat[r.category] = (byCat[r.category] || 0) + r.amount;
+    const cats = Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]);
+
+    if (categoryChart) categoryChart.destroy();
+    categoryChart = new Chart(document.getElementById("category-chart"), {
+      type: "bar",
+      data: {
+        labels: cats,
+        datasets: [{
+          data: cats.map(c => byCat[c]),
+          backgroundColor: seriesColor,
+          borderRadius: 4,
+          maxBarThickness: 24,
+        }],
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => money(ctx.parsed.x) + " টাকা" } },
+        },
+        scales: {
+          y: { grid: { display: false }, ticks: { color: mutedColor } },
+          x: {
+            beginAtZero: true,
+            grid: { color: gridColor },
+            ticks: { color: mutedColor, callback: v => money(v) },
+          },
+        },
+      },
+    });
+  }
+  renderCategoryChart(currentMonth);
+  monthSelect.addEventListener("change", e => renderCategoryChart(e.target.value));
+
+  // ---- recent to-buy list (last 14 days) ----
+  const fourteenDaysAgo = new Date(maxDate);
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+  const cutoff14 = fourteenDaysAgo.toISOString().slice(0, 10);
+  const todo = rows
+    .filter(r => r.status === TO_BUY && r.date >= cutoff14)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  const todoList = document.getElementById("todo-list");
+  if (todo.length === 0) {
+    document.getElementById("todo-hint").style.display = "block";
+  } else {
+    todoList.innerHTML = todo.map(r =>
+      `<li><span>${r.item}${r.quantity ? " — " + r.quantity : ""}</span><span class="muted">${r.date}</span></li>`
+    ).join("");
+  }
+
+  // ---- full item table ----
+  const categoryFilter = document.getElementById("category-filter");
+  const categories = [...new Set(rows.map(r => r.category))].sort();
+  categoryFilter.innerHTML += categories.map(c => `<option value="${c}">${c}</option>`).join("");
+
+  const sorted = rows.slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+  const tbody = document.getElementById("table-body");
+  const searchBox = document.getElementById("search-box");
+
+  function renderTable() {
+    const q = searchBox.value.trim().toLowerCase();
+    const cat = categoryFilter.value;
+    const filtered = sorted.filter(r => {
+      if (cat && r.category !== cat) return false;
+      if (!q) return true;
+      return (r.item + r.note + r.category).toLowerCase().includes(q);
+    });
+    tbody.innerHTML = filtered.map(r => `
+      <tr>
+        <td>${r.date}</td>
+        <td>${r.category}</td>
+        <td>${r.item}</td>
+        <td>${r.quantity || "—"}</td>
+        <td class="amount">${r.amount ? money(r.amount) : "—"}</td>
+        <td>${r.status === TO_BUY ? '<span class="status-buy">কিনতে হবে</span>' : "কেনা হয়েছে"}</td>
+        <td class="note">${r.note || ""}</td>
+      </tr>
+    `).join("") || `<tr><td colspan="7" class="empty">কিছু পাওয়া যায়নি</td></tr>`;
+  }
+  searchBox.addEventListener("input", renderTable);
+  categoryFilter.addEventListener("change", renderTable);
+  renderTable();
+}
+
+main().catch(err => {
+  console.error(err);
+  document.getElementById("kpi-row").innerHTML =
+    '<div class="card" style="grid-column:1/-1">ডেটা লোড করতে সমস্যা হয়েছে। কনসোলে বিস্তারিত দেখুন।</div>';
+});
+
+// ---- "process today now" button ----
+// This token is INTENTIONALLY public (it lives in this page's source, which
+// anyone can view). It is scoped to only this repo's Actions: read/write, so
+// it can start this workflow but cannot read or change code, secrets, or
+// settings. Worst-case abuse is someone spamming workflow runs, which costs
+// Actions minutes and Gemini API quota, not a security breach.
+const TRIGGER_TOKEN = "___TRIGGER_TOKEN___";
+const TRIGGER_OWNER = "evilfoxbd";
+const TRIGGER_REPO = "family-khoroch";
+const TRIGGER_WORKFLOW = "daily-report.yml";
+const TRIGGER_COOLDOWN_MS = 120000; // 2 minutes - avoids accidental double-clicks, not a security control
+
+function setupTriggerButton() {
+  const btn = document.getElementById("trigger-btn");
+  const status = document.getElementById("trigger-status");
+
+  function cooldownRemaining() {
+    const last = parseInt(localStorage.getItem("khoroch-last-trigger") || "0", 10);
+    return TRIGGER_COOLDOWN_MS - (Date.now() - last);
+  }
+
+  function tickCooldown() {
+    const remain = cooldownRemaining();
+    if (remain > 0) {
+      btn.disabled = true;
+      btn.textContent = `${Math.ceil(remain / 1000)} সেকেন্ড পর আবার চালানো যাবে`;
+      setTimeout(tickCooldown, 1000);
+    } else {
+      btn.disabled = false;
+      btn.textContent = "▶ এখনই চালান";
+    }
+  }
+
+  btn.addEventListener("click", async () => {
+    if (cooldownRemaining() > 0) return;
+    btn.disabled = true;
+    btn.textContent = "চলছে...";
+    status.textContent = "GitHub-কে বলা হচ্ছে যেন এখনই প্রসেস করে...";
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${TRIGGER_OWNER}/${TRIGGER_REPO}/actions/workflows/${TRIGGER_WORKFLOW}/dispatches`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${TRIGGER_TOKEN}`,
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ref: "main" }),
+        }
+      );
+      if (res.status === 204) {
+        localStorage.setItem("khoroch-last-trigger", String(Date.now()));
+        status.innerHTML = 'শুরু হয়েছে ✓ — সাধারণত ১-২ মিনিট লাগে। <a href="https://github.com/' +
+          TRIGGER_OWNER + '/' + TRIGGER_REPO + '/actions/workflows/' + TRIGGER_WORKFLOW +
+          '" target="_blank" rel="noopener">অগ্রগতি দেখুন</a>, তারপর এই পেজ রিফ্রেশ করুন।';
+        tickCooldown();
+      } else {
+        console.error("dispatch failed", res.status, await res.text());
+        status.textContent = `সমস্যা হয়েছে (কোড ${res.status})। টোকেনের মেয়াদ শেষ হয়ে থাকতে পারে।`;
+        btn.disabled = false;
+        btn.textContent = "▶ আবার চেষ্টা করুন";
+      }
+    } catch (err) {
+      console.error(err);
+      status.textContent = "নেটওয়ার্ক সমস্যা হয়েছে, আবার চেষ্টা করুন।";
+      btn.disabled = false;
+      btn.textContent = "▶ আবার চেষ্টা করুন";
+    }
+  });
+
+  tickCooldown();
+}
+setupTriggerButton();
+</script>
+</body>
+</html>
