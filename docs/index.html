@@ -75,6 +75,7 @@
   .trigger-title { font-weight: 600; font-size: 14px; }
   .trigger-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
   #trigger-btn {
+    display: inline-block;
     background: var(--series-1);
     color: #ffffff;
     border: none;
@@ -83,11 +84,11 @@
     font-size: 14px;
     font-weight: 600;
     font-family: inherit;
+    text-decoration: none;
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
   }
-  #trigger-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .kpi-row {
     display: grid;
@@ -197,9 +198,10 @@
     <div class="trigger-row">
       <div>
         <div class="trigger-title">আজকের ডেটা এখনই প্রসেস করুন</div>
-        <div class="trigger-sub" id="trigger-status">সাধারণত রাত ১২টায় নিজে থেকে হয় — চাইলে এখনই চালাতে পারেন</div>
+        <div class="trigger-sub">সাধারণত রাত ১২টায় নিজে থেকে হয় — চাইলে এখনই চালাতে পারেন (GitHub-এ লগইন থাকতে হবে)</div>
       </div>
-      <button id="trigger-btn">▶ এখনই চালান</button>
+      <a id="trigger-btn" href="https://github.com/evilfoxbd/family-khoroch/actions/workflows/daily-report.yml"
+         target="_blank" rel="noopener">GitHub-এ চালান ↗</a>
     </div>
   </div>
 
@@ -447,82 +449,6 @@ main().catch(err => {
   document.getElementById("kpi-row").innerHTML =
     '<div class="card" style="grid-column:1/-1">ডেটা লোড করতে সমস্যা হয়েছে। কনসোলে বিস্তারিত দেখুন।</div>';
 });
-
-// ---- "process today now" button ----
-// This token is INTENTIONALLY public (it lives in this page's source, which
-// anyone can view). It is scoped to only this repo's Actions: read/write, so
-// it can start this workflow but cannot read or change code, secrets, or
-// settings. Worst-case abuse is someone spamming workflow runs, which costs
-// Actions minutes and Gemini API quota, not a security breach.
-const TRIGGER_TOKEN = "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";
-const TRIGGER_OWNER = "evilfoxbd";
-const TRIGGER_REPO = "family-khoroch";
-const TRIGGER_WORKFLOW = "daily-report.yml";
-const TRIGGER_COOLDOWN_MS = 120000; // 2 minutes - avoids accidental double-clicks, not a security control
-
-function setupTriggerButton() {
-  const btn = document.getElementById("trigger-btn");
-  const status = document.getElementById("trigger-status");
-
-  function cooldownRemaining() {
-    const last = parseInt(localStorage.getItem("khoroch-last-trigger") || "0", 10);
-    return TRIGGER_COOLDOWN_MS - (Date.now() - last);
-  }
-
-  function tickCooldown() {
-    const remain = cooldownRemaining();
-    if (remain > 0) {
-      btn.disabled = true;
-      btn.textContent = `${Math.ceil(remain / 1000)} সেকেন্ড পর আবার চালানো যাবে`;
-      setTimeout(tickCooldown, 1000);
-    } else {
-      btn.disabled = false;
-      btn.textContent = "▶ এখনই চালান";
-    }
-  }
-
-  btn.addEventListener("click", async () => {
-    if (cooldownRemaining() > 0) return;
-    btn.disabled = true;
-    btn.textContent = "চলছে...";
-    status.textContent = "GitHub-কে বলা হচ্ছে যেন এখনই প্রসেস করে...";
-    try {
-      const res = await fetch(
-        `https://api.github.com/repos/${TRIGGER_OWNER}/${TRIGGER_REPO}/actions/workflows/${TRIGGER_WORKFLOW}/dispatches`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${TRIGGER_TOKEN}`,
-            Accept: "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ ref: "main" }),
-        }
-      );
-      if (res.status === 204) {
-        localStorage.setItem("khoroch-last-trigger", String(Date.now()));
-        status.innerHTML = 'শুরু হয়েছে ✓ — সাধারণত ১-২ মিনিট লাগে। <a href="https://github.com/' +
-          TRIGGER_OWNER + '/' + TRIGGER_REPO + '/actions/workflows/' + TRIGGER_WORKFLOW +
-          '" target="_blank" rel="noopener">অগ্রগতি দেখুন</a>, তারপর এই পেজ রিফ্রেশ করুন।';
-        tickCooldown();
-      } else {
-        console.error("dispatch failed", res.status, await res.text());
-        status.textContent = `সমস্যা হয়েছে (কোড ${res.status})। টোকেনের মেয়াদ শেষ হয়ে থাকতে পারে।`;
-        btn.disabled = false;
-        btn.textContent = "▶ আবার চেষ্টা করুন";
-      }
-    } catch (err) {
-      console.error(err);
-      status.textContent = "নেটওয়ার্ক সমস্যা হয়েছে, আবার চেষ্টা করুন।";
-      btn.disabled = false;
-      btn.textContent = "▶ আবার চেষ্টা করুন";
-    }
-  });
-
-  tickCooldown();
-}
-setupTriggerButton();
 </script>
 </body>
 </html>
